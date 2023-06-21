@@ -1,4 +1,4 @@
-console.log('content script starts');
+console.log("sne - ",'content script starts');
 
 // ====== Utilities ======
 
@@ -17,6 +17,7 @@ let getCurrentPage=()=>{
         case 'bandcamp':
         case 'discogs':
         case 'soundcloud':
+        case '163':
         case 'apple':
             page=site;
             break;
@@ -36,7 +37,10 @@ let fillDropdown=(dropdown, value, valueIndexMap)=>{
 }
 
 // douban listing page 1
-let fillDouban1=(meta, click=false) =>{                              
+let fillDouban1=(meta, click=false) =>{ 
+    console.log('sne,fillDouban1');
+    console.log('sne,fillDouban1,meta',meta);
+   
     document.getElementById('p_title').value=meta['album']; // album
     let button;
     if (meta['barcode']){
@@ -46,7 +50,7 @@ let fillDouban1=(meta, click=false) =>{
     } else{
         button=document.getElementsByClassName('btn-link')[0];
     }
-    if (click) button.click(); 
+    if (click) button.click();  //TODO: 保留，为了看log暂时注释
 }
 
 // douban listing page 2
@@ -114,15 +118,21 @@ let fillDouban3=(meta,click=false) =>{ // TODO: auto-select image
 
 
 
-// ====== Bancamp/discogs/soundcloud/apple ======
+// ====== Bancamp/discogs/soundcloud/apple/163 ======
 
+// 点击collect按钮
 let createButton = (currentPage)=>{
     var button=document.createElement("Button");
     button.innerHTML ="Collect";
     button.style = "top:0;left:0;position:absolute;z-index:9999";
     button.onclick=function(){
-        let meta=collectMeta(currentPage);
+        // 收集数据
+        let meta=collectMeta(currentPage); // todo:✓
+        console.log('sne,browser',browser);//TODO: del test
+        console.log('sne,meta', meta); //TODO: del test
+        // 把数据发到新页面
         browser.runtime.sendMessage({page:currentPage,meta: JSON.stringify(meta)});
+        // 跳转到新的页面 
         window.open("https://music.douban.com/new_subject");
     };
     document.body.appendChild(button);
@@ -170,6 +180,8 @@ let collectMeta=(currentPage) => {
             return collectDiscogsMeta();
         case "soundcloud":
            return collectSoundcloudMeta();
+        case "163":
+            return collectCloudMusicMeta();
         case "apple":
             return collectAppleMeta();
         default:
@@ -270,15 +282,16 @@ let collectAppleMeta=()=>{ // TODO
     for (const key of keys) out[key]=null;
 
     out['url']= document.URL;
-    out['album']=document.getElementsByClassName('album-header-metadata')[0].children[0].textContent.trim();
+    out['album']=document.getElementsByClassName('headings')[0].children[0].textContent.trim();
     out['barcode']=null;
-    out['artists']=[document.getElementsByClassName('album-header-metadata')[0].children[1].textContent.trim()];
-    let genre=document.getElementsByClassName('album-header-metadata')[0].children[2].textContent.trim().split("·")[0].trim();
+    out['artists']=[document.getElementsByClassName('headings')[0].children[1].textContent.trim()];
+    let genre=document.getElementsByClassName('headings')[0].children[2].textContent.trim().split("·")[0].trim();
     const genreNameMap={'Dance':'Electronic','Hip-Hop':'Rap','HipHop':'Rap','Alternative':'Rock', "Hip-Hop/Rap":'Rap'};
     if (genre && genreNameMap[genre]) out['genre']=genreNameMap[genre];
     out['releaseType']='Album'; // TODO
     out['media']='Digital';
-    out['date']=document.getElementsByClassName("bottom-metadata")[0].getElementsByClassName('song-released-container')[0].textContent.replace("RELEASED",'').trim() // TODO:convert
+    // out['date']=document.getElementsByClassName("bottom-metadata")[0].getElementsByClassName('song-released-container')[0].textContent.replace("RELEASED",'').trim() // TODO:convert
+    out['date']=document.getElementsByClassName("footer-body")[0].getElementsByClassName('description')[0].textContent.trim() // TODO:convert
     out['date']=formatDate(out['date']);
     try{
         out['label']=document.getElementsByClassName("bottom-metadata")[0].getElementsByClassName('song-copyright')[0].textContent.replace(/℗ \d+ /,'');
@@ -291,6 +304,7 @@ let collectAppleMeta=()=>{ // TODO
     for (i=0;i<songs.length;i++){
         tracksText+=`${i+1}. ${songs[i].textContent.trim()}\n`;
     } 
+    // console.log("sne: trackText",trackText); //TODO: test del
     out['tracks']=tracksText
 
     out['description']=out['url']
@@ -302,6 +316,54 @@ let collectAppleMeta=()=>{ // TODO
         let _arr=document.getElementsByClassName('product-info')[0].getElementsByTagName('source')[1].srcset.split(" ");
         out['imgUrl']=_arr[_arr.length-2];
     } catch(err){}
+    return out;
+}
+
+let collectCloudMusicMeta=()=>{
+    console.log("sne:startCollect163Meta")
+    let keys=['url' , 'album', 'barcode', 'albumAltName' , 'artists', 'genre', 'releaseType', 'media', 'date', 'label', 'numberOfDiscs', 'isrc', 'tracks', 'description', 'imgUrl']
+    out={}
+    for (const key of keys) out[key]=null;
+    
+    out['url'] = document.URL;
+    var doc = document.getElementById("g_iframe").contentWindow.document;
+    out['album'] = doc.querySelector("h2.f-ff2").textContent;
+    out['artists'] = doc.querySelector("a.s-fc7").textContent;
+    out['date'] = doc.querySelector("p:nth-child(3)").textContent.substr(5);
+
+    // 出版者
+    if (doc.querySelector("p:nth-child(4)")) out['label'] = doc.querySelector("p:nth-child(4)").textContent.substr(6).trim();
+    else out['label'] = doc.querySelector("a.s-fc7").textContent; // default: 歌手
+
+    // tracks
+    let tracks = doc.querySelector("table");
+    let trackText="";
+    for(var i = 1, rows = tracks.rows.length; i<rows; i++){
+        let track = tracks.rows[i].cells[1];
+        let trackPos=(i).toString();
+        let trackTitle=''
+        let es = track.querySelector('a > b');
+        if (es) trackTitle = es.attributes.title.textContent;
+        trackText+=`${trackPos} - ${trackTitle}\n`;
+    }
+    out['tracks']=trackText;
+    
+    // description
+    out['description'] = '';
+    if (doc.getElementById('album-desc-more')) out['description'] = doc.getElementById('album-desc-more').innerText;
+    else if (doc.getElementById('album-desc-dot')) out['description'] = doc.getElementById('album-desc-dot').innerText;
+    
+    // imgurl
+    try{
+        let imgURL = doc.querySelector("div.cover.u-cover.u-cover-alb > img").src; // substr去掉了尺寸缩减的param);
+        // let _arr=doc.querySelector("div.cover.u-cover.u-cover-alb > img").src;
+        let u = imgURL.substr(0,imgURL.length-14);
+        console.log('sne,imgurl4', u);
+        // console.log('sne,imgurl',_arr[_arr.length-14]);
+        out['imgUrl']= u; // substr去掉了尺寸缩减的param;
+    } catch(err){}
+
+    console.log("sne - out:",out);
     return out;
 }
 
@@ -338,6 +400,7 @@ switch(currentPage){
     case 'bandcamp':
     case 'discogs':
     case 'apple':
+    case '163':
     // case 'soundcloud':
         createButton(currentPage);
     case 'douban-1':
@@ -349,10 +412,12 @@ switch(currentPage){
 
 // listens to background script message
 // only get message on douban-1 opened by the bandcamp button
-browser.runtime.onMessage.addListener(message => {
+browser.runtime.onMessage.addListener(message => { // TODO: 这里收不到消息，apple第一页走到了
     console.log("Message from the background script:");
+    console.log(message);
     if (message.meta){
         let metaBackground=JSON.parse(message.meta)
+        console.log("sne,test,metaBackground",metaBackground);
         if(currentPage=='douban-1'){
             fillDouban1(metaBackground,click=true);
             localStorage.setItem(localStorageId, JSON.stringify(metaBackground));
@@ -363,7 +428,9 @@ browser.runtime.onMessage.addListener(message => {
 
 // autofill douban-2 if meta is stored to localStorage
 let metaStored=localStorage.getItem(localStorageId)
+// TODO: 这里没收到网易云的消息
 if (metaStored){
+    console.log("sne - metaStored2");//TODO: no
     metaStored=JSON.parse(metaStored);
     if (currentPage=='douban-2'){
         fillDouban2(metaStored,click=false);

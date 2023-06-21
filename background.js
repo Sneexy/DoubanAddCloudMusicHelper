@@ -12,6 +12,7 @@ browser.runtime.onMessage.addListener((msg, sender, sendResponse) =>{
         case "bandcamp":
         case "discogs":
         case "apple":
+        case "163":
         // case "soundcloud": // TODO
             console.log("Metadata received in background");
             meta=JSON.parse(msg.meta);
