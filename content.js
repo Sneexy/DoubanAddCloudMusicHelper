@@ -328,7 +328,7 @@ let collectCloudMusicMeta=()=>{
     out['url'] = document.URL;
     var doc = document.getElementById("g_iframe").contentWindow.document;
     out['album'] = doc.querySelector("h2.f-ff2").textContent;
-    out['artists'] = doc.querySelector("a.s-fc7").textContent;
+    out['artists'] = [doc.querySelector("p:nth-child(2)").textContent.substr(3).trim()];
     out['date'] = doc.querySelector("p:nth-child(3)").textContent.substr(5);
 
     // 出版者
