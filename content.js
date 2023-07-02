@@ -304,7 +304,6 @@ let collectAppleMeta=()=>{ // TODO
     for (i=0;i<songs.length;i++){
         tracksText+=`${i+1}. ${songs[i].textContent.trim()}\n`;
     } 
-    // console.log("sne: trackText",trackText); //TODO: test del
     out['tracks']=tracksText
 
     out['description']=out['url']
@@ -332,8 +331,11 @@ let collectCloudMusicMeta=()=>{
     out['date'] = doc.querySelector("p:nth-child(3)").textContent.substr(5);
 
     // 出版者
-    if (doc.querySelector("p:nth-child(4)")) out['label'] = doc.querySelector("p:nth-child(4)").textContent.substr(6).trim();
-    else out['label'] = doc.querySelector("a.s-fc7").textContent; // default: 歌手
+    if (doc.getElementsByClassName('intr')[2]) {
+        out['label'] = doc.getElementsByClassName('intr')[2].textContent.substr(6).trim();
+    } else {
+        out['label'] = doc.querySelector("a.s-fc7").textContent; // default: 歌手
+    }
 
     // tracks
     let tracks = doc.querySelector("table");
@@ -359,7 +361,6 @@ let collectCloudMusicMeta=()=>{
         // let _arr=doc.querySelector("div.cover.u-cover.u-cover-alb > img").src;
         let u = imgURL.substr(0,imgURL.length-14);
         console.log('sne,imgurl4', u);
-        // console.log('sne,imgurl',_arr[_arr.length-14]);
         out['imgUrl']= u; // substr去掉了尺寸缩减的param;
     } catch(err){}
 
@@ -412,7 +413,7 @@ switch(currentPage){
 
 // listens to background script message
 // only get message on douban-1 opened by the bandcamp button
-browser.runtime.onMessage.addListener(message => { // TODO: 这里收不到消息，apple第一页走到了
+browser.runtime.onMessage.addListener(message => {
     console.log("Message from the background script:");
     console.log(message);
     if (message.meta){
@@ -428,9 +429,8 @@ browser.runtime.onMessage.addListener(message => { // TODO: 这里收不到消�
 
 // autofill douban-2 if meta is stored to localStorage
 let metaStored=localStorage.getItem(localStorageId)
-// TODO: 这里没收到网易云的消息
 if (metaStored){
-    console.log("sne - metaStored2");//TODO: no
+    console.log("sne - metaStored2");
     metaStored=JSON.parse(metaStored);
     if (currentPage=='douban-2'){
         fillDouban2(metaStored,click=false);
