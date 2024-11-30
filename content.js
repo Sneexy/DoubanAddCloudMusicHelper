@@ -54,6 +54,7 @@ let fillDouban1=(meta, click=false) =>{
 }
 
 // douban listing page 2
+// 添加条目页面，填充字段到页面信息
 let fillDouban2=(meta,click=false) =>{
     document.getElementsByClassName('item basic')[0].getElementsByClassName('input_basic modified')[0].value=meta['album'];
     document.getElementsByClassName('item basic')[1].getElementsByClassName('datepicker input_basic hasDatepicker')[0].value=meta['date'];
@@ -106,6 +107,7 @@ let fillDouban2=(meta,click=false) =>{
                 });
     document.getElementsByClassName('item text section')[0].getElementsByClassName('textarea_basic')[0].value= meta['tracks'];
     document.getElementsByClassName('item text section')[1].getElementsByClassName('textarea_basic')[0].value=meta['description'];
+    document.getElementsByClassName('item text section')[2].getElementsByClassName('textarea_basic')[0].value=meta['url'];
 
     if (click) document.getElementsByClassName('submit')[0].click();
 }
